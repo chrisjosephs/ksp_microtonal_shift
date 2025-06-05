@@ -1,0 +1,79 @@
+on init
+    declare ui_knob $CENTER_KEY (0, 127, 1)
+    declare ui_knob $EDO_STEPS (1, 96, 1)
+    declare $STEP_RANGE
+    declare $STEP_SIZE
+    declare $detune
+	declare $cents_detune
+	declare $i
+	declare $j
+	declare $kr
+    make_persistent($CENTER_KEY)
+    make_persistent($EDO_STEPS)
+    make_persistent($detune)
+
+    $CENTER_KEY := 61
+    $EDO_STEPS := 31
+end on
+
+function ClearKeyColors
+    $j := 0
+    while ($j < 128)
+        set_key_color($j, $KEY_COLOR_NONE)
+        inc($j)
+    end while
+end function
+
+function KeyColor()
+    call ClearKeyColors()
+
+    $i := $CENTER_KEY - $STEP_RANGE
+    while ($i <= $CENTER_KEY + $STEP_RANGE)
+        if (in_range($i, 0, 127))
+            set_key_color($i, $KEY_COLOR_RED)
+        end if
+        inc($i)
+    end while
+
+    if (in_range($CENTER_KEY, 0, 127))
+        set_key_color($CENTER_KEY, $KEY_COLOR_YELLOW)
+    end if
+
+    if (in_range($CENTER_KEY + $detune, 0, 127))
+        set_key_color($CENTER_KEY + $detune, $KEY_COLOR_GREEN)
+    end if
+end function
+
+on note
+    if (in_range($EVENT_NOTE, $CENTER_KEY - $STEP_RANGE, $CENTER_KEY + $STEP_RANGE))
+        ignore_event($EVENT_ID)
+        $detune := $EVENT_NOTE - $CENTER_KEY
+		$cents_detune := ($detune * 1200000) / $EDO_STEPS 
+        change_tune($ALL_EVENTS, $detune * $STEP_SIZE, 0)
+        call KeyColor()
+        message("Detune set to: " & $detune & " steps (" & ($cents_detune) & " cents)")
+    else
+        change_tune($EVENT_ID, $detune * $STEP_SIZE, 0)
+    end if
+end on
+
+function UpdateEDO()
+    $STEP_RANGE := $EDO_STEPS -1
+    $STEP_SIZE := 1200000 / $EDO_STEPS
+    call KeyColor()
+end function
+
+on persistence_changed
+    call UpdateEDO()
+end on
+
+on ui_control($CENTER_KEY)
+    call KeyColor()
+end on
+
+on ui_control($EDO_STEPS)
+    call UpdateEDO()
+end on
+
+
+
